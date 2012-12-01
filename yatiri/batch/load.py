@@ -4,6 +4,7 @@ import logging
 
 from yatiri import datastore
 from yatiri.hashing import doc_guid
+from yatiri.keys import get_key
 
 
 logger = logging.getLogger(__name__)
@@ -16,8 +17,6 @@ REQUIRED_FIELDS = (
     'site',
     'url',
 )
-
-KEY_FORMAT = 'news:{year}{month}{day}:{site}:{guid}'
 
 
 def parse_domain(url):
@@ -51,31 +50,6 @@ def preprocess(doc):
     """
     doc['guid'] = doc_guid(doc)
     return doc
-
-
-def get_key(doc):
-    """Returns unique key for given document.
-
-    >>> doc1 = dict(guid='1', datetime='2012-11-29', site='a')
-    >>> doc2 = dict(guid='2', datetime='2012-11-29 12:13', site='a')
-    >>> get_key(doc1) != get_key(doc2)
-    True
-
-    """
-    # date might be 'YYYY-mm-dd HH:MM'
-    date = doc['datetime'].partition(' ')[0]
-    try:
-        yy, mm, dd = date.split('-')
-    except ValueError:
-        raise ValueError("Could not parse date from {!r}".format(date))
-    kwargs = {
-        'year': yy,
-        'month': mm,
-        'day': dd,
-        'guid': doc['guid'],
-        'site': doc['site'],
-    }
-    return KEY_FORMAT.format(**kwargs)
 
 
 def load_csv(stream):
