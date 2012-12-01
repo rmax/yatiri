@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import argparse
+import cmd
 import itertools
 import json
 import logging
 import numpy as np
+import os
 import sys
 
 from sklearn import metrics
@@ -17,6 +19,7 @@ from yatiri.classification import (
     build_model_b,
     build_model_c,
 )
+from yatiri.hashing import doc_guid
 from yatiri.keys import next_key, get_key
 from yatiri.timing import WriteRuntime
 
@@ -52,6 +55,102 @@ PARAMETERS = {
         'clf__n_jobs': 4,
     },
 }
+
+
+class LabelValidation(cmd.Cmd):
+
+    prompt_fmt = '({0.current}/{0.total}) '
+
+    def __init__(self, train_path, results):
+        cmd.Cmd.__init__(self)
+        self.train_path = train_path
+        self.current = 0
+        self.total = len(results)
+        self.results = iter(results)
+
+    def preloop(self):
+        self.do_next('')
+
+    def do_next(self, line):
+        """Go next document"""
+        try:
+            self.current_doc, self.current_label = self.results.next()
+        except StopIteration:
+            print "No more documents"
+            return True
+
+        self.current += 1
+        self.prompt = self.prompt_fmt.format(self)
+        self.do_print(line)
+
+    do_n = do_next
+
+    def do_print(self, line):
+        """View summary"""
+        print "\t" + self.current_doc['headline']
+        print "\t{!r}".format(self.current_label)
+
+    do_p = do_print
+
+    def do_view(self, line):
+        """View document"""
+        if line:
+            try:
+                limit = int(line)
+            except ValueError:
+                print "*** Invalid integer"
+                return
+        else:
+            limit = 500
+
+        print get_key(self.current_doc)
+        print self.current_doc['headline']
+        print self.current_doc['url']
+        print
+
+        if len(self.current_doc['body']) > limit:
+            print self.current_doc['body'][:limit] + '...'
+        else:
+            print self.current_doc['body']
+
+    do_v = do_view
+
+    def do_label(self, line):
+        """Update label for current document storing it
+        in the train_path.
+        """
+        label = line.strip()
+        path = os.path.join(self.train_path, label)
+        if not os.path.exists(path):
+            os.mkdir(path)
+        filepath = os.path.join(path, doc_guid(self.current_doc) + '.json')
+        with open(filepath, 'wb') as fp:
+            json.dump(self.current_doc, fp)
+        print "Document stored in train category {}".format(label)
+        print "Moving to next document"
+        return self.do_next('')
+
+    do_l = do_label
+
+    def complete_label(self, text, line, begidx, endidx):
+        categories = os.listdir(self.train_path)
+        if text:
+            return [cat for cat in categories if cat.startswith(text)]
+        else:
+            return categories
+
+    complete_l = complete_label
+
+    def do_quit(self, line):
+        """Quit"""
+        return True
+
+    do_q = do_quit
+
+    def do_EOF(self, line):
+        return True
+
+
 
 
 def split_list(list_, length):
@@ -146,15 +245,15 @@ def main(args):
             pred = model.predict(data)
             results.append(pred)
 
+        labels = []
         for i, doc in enumerate(data):
-            print 80 * '-'
-            print doc['headline']
-            print doc['url']
-            print get_key(doc)
-            cat_by_model = []
+            _by_model = []
             for j, _ in enumerate(MODELS):
-                cat_by_model.append(categories[results[j][i]])
-            print 'Result: {!r}'.format(cat_by_model)
+                _by_model.append(categories[results[j][i]])
+            labels.append(_by_model)
+
+        data_labels = zip(data, labels)
+        LabelValidation(args.train_path, data_labels).cmdloop()
 
         # get top keys
         # v = model.named_steps['vect']
