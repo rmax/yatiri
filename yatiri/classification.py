@@ -1,6 +1,8 @@
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.feature_selection import (
     SelectPercentile, chi2,
 )
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import SGDClassifier
 from sklearn.pipeline import Pipeline, FeatureUnion
 
@@ -8,6 +10,16 @@ from yatiri import tokenize
 from yatiri.features import TfidfVectorizer, get_preprocessor
 from yatiri.stemming import get_stemmer
 from yatiri.stopwords import STOP_WORDS
+
+
+class DenseMatrixTransformer(BaseEstimator, TransformerMixin):
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X, y=None):
+        return X.todense()
+
 
 
 def get_tokenizer():
@@ -75,6 +87,21 @@ def build_model_c():
         ('vect', ft),
         ('select', default_select()),
         ('clf', default_classifier()),
+    ])
+
+
+def build_model_d():
+    clf = RandomForestClassifier(
+        max_depth=5,
+        n_estimators=10,
+        max_features='auto',
+        random_state=42,
+    )
+
+    return Pipeline([
+        ('vect', default_vectorizer()),
+        ('todense', DenseMatrixTransformer()),
+        ('clf', clf),
     ])
 
 
