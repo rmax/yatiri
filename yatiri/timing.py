@@ -56,4 +56,6 @@ def LogRuntime(msg, logger=None, loglevel='debug'):
     return RuntimeCallback(lambda t: logmsg(msg.format(t, timer=t,
                                                        elapsed=t.elapsed)))
 
-
+def WriteRuntime(msg, fp):
+    return RuntimeCallback(lambda t: fp.write(msg.format(t, timer=t,
+                                                         elapsed=t.elapsed)))
