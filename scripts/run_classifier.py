@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import argparse
+import itertools
 import json
 import logging
 import numpy as np
@@ -10,11 +11,13 @@ from sklearn import metrics
 from sklearn.datasets import load_files
 from sklearn.utils.extmath import density
 
+from yatiri import datastore
 from yatiri.classification import (
     build_model_a,
     build_model_b,
     build_model_c,
 )
+from yatiri.keys import next_key, get_key
 from yatiri.timing import WriteRuntime
 
 
@@ -65,7 +68,11 @@ def benchmark(model, categories, train_data, train_target, test_data, test_targe
     with WriteRuntime("test time: {elapsed:.3f}\n", sys.stdout):
         pred = model.predict(test_data)
 
-    score = metrics.f1_score(test_target, pred)
+    report_accuracy(model, categories, test_target, pred)
+
+
+def report_accuracy(model, categories, test_target, predicted):
+    score = metrics.f1_score(test_target, predicted)
     print "f1-score: {:.3f}".format(score)
 
     coef = model.named_steps['clf'].coef_
@@ -96,12 +103,17 @@ def load_docs(path):
     dataset.data = docs
     return dataset
 
+def load_keys(fromkey, offset, limit):
+    tokey = next_key(fromkey)
+    db = datastore.corpus_db()
+    it = db.range(fromkey, tokey)
+    return [v for k,v in itertools.islice(it, offset, offset + limit)]
 
 def main(args):
     dataset = load_docs(args.train_path)
 
     if args.train_size:
-        if args.train_size < 1:
+        if args.train_size <= 1:
             train_size = int(args.train_size * len(dataset.data))
         else:
             train_size = int(args.train_size)
@@ -109,20 +121,58 @@ def main(args):
         train_size = len(dataset.data) / 2
 
     categories = dataset.target_names
+
     train_data, test_data = split_list(dataset.data, train_size)
     train_target, test_target = split_list(dataset.target, train_size)
 
-    print "{} documents (training set)".format(len(train_data))
-    print "{} documents (testing set)".format(len(test_data))
     print "{} categories".format(len(categories))
+    print "{} documents (training set)".format(len(train_data))
 
-    results = []
-    params = (categories, train_data, train_target, test_data, test_target)
-    for name, model in MODELS:
-        print (80 * '=')
-        print name
-        model.set_params(**PARAMETERS[name])
-        results.append(benchmark(model, *params))
+    if args.classify_keys:
+        # override test data from given keys
+        data = load_keys(args.classify_keys, args.classify_skip,
+                         args.classify_limit)
+        print "{} documents (classify set)".format(len(data))
+        if not data:
+            return
+        # report results for each model per document
+        print 'Models: ' + repr([name for name, _ in MODELS])
+
+        results = []
+        for name, model in MODELS:
+            # train
+            model.fit(train_data, train_target)
+            # classify
+            pred = model.predict(data)
+            results.append(pred)
+
+        for i, doc in enumerate(data):
+            print 80 * '-'
+            print doc['headline']
+            print doc['url']
+            print get_key(doc)
+            cat_by_model = []
+            for j, _ in enumerate(MODELS):
+                cat_by_model.append(categories[results[j][i]])
+            print 'Result: {!r}'.format(cat_by_model)
+
+        # get top keys
+        # v = model.named_steps['vect']
+        # X = v.transform([doc])
+        # topkeys = [
+        #   features[i] for i in np.argsort(row.toarray())[0][-20:]
+        # ]
+        #from IPython import embed; embed()
+
+    else:
+        print "{} documents (testing set)".format(len(test_data))
+        results = []
+        params = (categories, train_data, train_target, test_data, test_target)
+        for name, model in MODELS:
+            print (80 * '=')
+            print name
+            model.set_params(**PARAMETERS[name])
+            results.append(benchmark(model, *params))
 
 
 
@@ -131,5 +181,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('train_path')
     parser.add_argument('--train-size', type=float)
+    parser.add_argument('--classify-keys')
+    parser.add_argument('--classify-limit', type=int, default=10)
+    parser.add_argument('--classify-skip', type=int, default=0)
     args = parser.parse_args()
     main(args)
