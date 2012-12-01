@@ -1,0 +1,21 @@
+# frontend
+cyclone
+txrho
+# data processing
+scikit-learn
+ml_metrics
+nltk
+
+# storage
+snappy
+msgpack
+leveldb
+leveldict
+
+# search
+-e svn+http://xappy.googlecode.com/svn/trunk/#egg=xappy
+
+# misc
+progressbar
+sphinx
+nose
