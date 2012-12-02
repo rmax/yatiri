@@ -1,3 +1,4 @@
+import xapian
 import xappy
 from xappy import FieldActions
 
@@ -23,9 +24,32 @@ TEXT_WEIGHTS = {
     'body': 1,
 }
 
-EXACT_FIELDS = {
-    'type',
-}
+EXACT_FIELDS = (
+    'category',
+    'date',
+    'topics',
+)
+
+SORTABLE_FIELDS = (
+    ('severity', {'type': 'float'}),
+    ('date', {'type': 'date'}),
+    # cluster coefficients
+    ('coef1', {'type': 'float', 'ranges': [(1.0, 50.0)]}),
+    ('coef7', {'type': 'float', 'ranges': [(1.0, 50.0)]}),
+    ('coef30', {'type': 'float', 'ranges': [(1.0, 50.0)]}),
+)
+
+FACET_FIELDS = (
+    'category',
+    'topics',
+)
+
+COLLAPSE_FIELDS = (
+    'severity',
+    'coef1',
+    'coef7',
+    'coef30',
+)
 
 
 class IndexerContext(object):
@@ -53,6 +77,16 @@ def create_index(conn):
     for name in EXACT_FIELDS:
         conn.add_field_action(name, FieldActions.INDEX_EXACT)
 
+    for name, kwargs in SORTABLE_FIELDS:
+        conn.add_field_action(name, FieldActions.SORTABLE, **kwargs)
+
+    for name in FACET_FIELDS:
+        conn.add_field_action(name, FieldActions.FACET)
+
+    for name in COLLAPSE_FIELDS:
+        conn.add_field_action(name, FieldActions.COLLAPSE)
+
+
 
 def index(items, doc_type, create=False):
     indexer = IndexerContext(settings.XAPIAN_DB)
@@ -71,6 +105,10 @@ def index(items, doc_type, create=False):
         return n
 
 
-def query(sconn, search, offset, limit):
-    q = sconn.query_parse(search, default_op=sconn.OP_AND)
+def execute_query(sconn, q, offset, limit):
+    if not isinstance(q,  (xapian.Query, xappy.Query)):
+        q = sconn.query_parse(q, default_op=sconn.OP_AND)
     return sconn.search(q, startrank=offset, endrank=offset+limit)
+
+# legacy alias
+query = execute_query
