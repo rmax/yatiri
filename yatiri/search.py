@@ -27,7 +27,7 @@ class BaseHandler(_BaseHandler):
         self.finish(data)
 
     def error(self, reason):
-        self.finish({'error': reason})
+        self.finish({'error': True, 'reason': reason})
 
 
 class IndexHandler(BaseHandler):
@@ -42,13 +42,12 @@ class IndexHandler(BaseHandler):
         })
 
 
+
 class SearchHandler(BaseHandler):
 
     @web.asynchronous
     def get(self):
-        q = self.get_arg('q')
-        if not q:
-            return self.error('empty_query')
+        q = self.get_arg('q', '')
 
         try:
             offset = int(self.get_arg('offset', 0))
@@ -69,12 +68,26 @@ class SearchHandler(BaseHandler):
         return self.run(self._query, q, offset, limit)
 
     def _query(self, sconn, q, offset, limit):
+        if q:
+            q = sconn.query_parse(q)
+        else:
+            q = sconn.query_all()
+        categories = self.get_args('category')
+        if categories:
+            qc = sconn.query_composite(
+                sconn.OP_OR, [
+                    sconn.query_field('category', value)
+                    for value in categories
+                ])
+            q = sconn.query_composite(
+                sconn.OP_AND, [q, qc])
+        self.log('Query: {!r}'.format(q))
         results = execute_query(sconn, q, offset, limit)
         self.success({
             'total': results.matches_estimated,
             'is_exact': results.estimate_is_exact,
             'docs': [
-                {'id': r.id} for r in results
+                dict(id=r.id, category=r.get_terms('category').next()) for r in results
             ]
         })
 
