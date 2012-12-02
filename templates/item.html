@@ -1,0 +1,6 @@
+<div class="item {{ item.category }}">
+    <div class="headline"><a class="external" href="{{ item.url }}">{{ item.headline }}</a></div>
+    <div class="source muted">{{ item.site }} - {{ item.datetime }}</div>
+    <div class="summary">{% autoescape None %}{{ summary(item) }}</div>
+<div class="item">
+

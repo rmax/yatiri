@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="search-results">
+    {% for item in results %}
+        {% include "item.html" %}
+    {% end %}
+<div>
+{% end %}
