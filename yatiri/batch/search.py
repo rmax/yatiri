@@ -73,4 +73,4 @@ def index(items, doc_type, create=False):
 
 def query(sconn, search, offset, limit):
     q = sconn.query_parse(search, default_op=sconn.OP_AND)
-    return sconn.search(q, offset, limit)
+    return sconn.search(q, startrank=offset, endrank=offset+limit)
