@@ -15,13 +15,26 @@ def report_elapsed(it):
 
 
 def doc_summary(doc, limit=300):
-    teaser = doc.get('teaser')
-    if teaser:
-        return teaser
+    teaser = doc.get('teaser', '')
+    body = doc.get('body', '')
 
-    body = doc['body']
-    if len(body) < limit:
-        return body
+    if teaser and len(teaser) > 200:
+        target = teaser
+    else:
+        target = body
 
-    idx = body.rfind(' ')
-    return body[:idx] + ' ...'
+    firstnl = target.find('\n')
+    if target[:firstnl].count(' ') < 15:
+        target = target[firstnl:].strip()
+
+    if len(target) > limit:
+        idx = target.rfind(' ', 200, 300)
+        if idx == -1:
+            idx == 300
+        target = target[:idx].strip() + ' ...'
+
+    return nl2br(target)
+
+
+def nl2br(text):
+    return text.replace('\n', '<br />')
