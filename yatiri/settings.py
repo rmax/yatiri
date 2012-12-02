@@ -10,11 +10,11 @@ XAPIAN_DB = join(PROJECT_ROOT, 'xapiandb')
 
 # web settings
 STATIC_PATH = join(PROJECT_ROOT, 'static')
-TEMPLATES_PATH = join(PROJECT_ROOT, 'templates')
+TEMPLATE_PATH = join(PROJECT_ROOT, 'templates')
 COOKIE_SECRET = '32oETzKXQAGaYdkL5gEmGeJJFuYh7EQnp2XdTP1o/Vo='
 LOGIN_URL = '/login'
 LOGOUT_URL = '/logout'
-SEARCH_SERVER = 'http://localhost:9999'
+SEARCH_ENDPOINT = 'http://localhost:9999/'
 
 # search settings
 

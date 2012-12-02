@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>No se encontraron resultados.</h2>
+
+    <p>No se ha encontrado ningún resultado para su búsqueda <strong>{{ query }}</strong></p>
+
+    <p>Sugerencias:</p>
+
+    <ul>
+        <li>Aseg&uacute;rese que las palabras esten bien escritas.</li>
+        <li>Intente diferentes palabras claves.</li>
+        <li>Intente palabras m&acute; generales.</li>
+        <li>Intente menos palabras generales.</li>
+    </ul>
+{% end %}

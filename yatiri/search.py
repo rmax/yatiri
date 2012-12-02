@@ -1,10 +1,11 @@
+
 from cyclone import web
 from txrho.xapian import SearchPool
-from twisted.python import log
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 
-import yatiri.settings
+from yatiri import settings
 from yatiri.batch.search import query as execute_query
+from yatiri.web import BaseHandler as _BaseHandler
 
 
 SETTINGS_MAP = (
@@ -12,17 +13,11 @@ SETTINGS_MAP = (
 )
 
 
-class BaseHandler(web.RequestHandler):
+class BaseHandler(_BaseHandler):
 
     @property
     def searchpool(self):
         return self.settings['searchpool']
-
-    def get_args(self, name, default=None):
-        return self.request.arguments.get(name, default)
-
-    def get_arg(self, name, default=None):
-        return self.get_args(name, [default])[0]
 
     def run(self, *args, **kwargs):
         return self.searchpool.runWithConnection(*args, **kwargs)
@@ -89,11 +84,12 @@ def get_app():
         (r'/', IndexHandler),
         (r'/search', SearchHandler),
     ]
-    params = dict(
-        (k, getattr(yatiri.settings, v.upper())) for (k,v) in SETTINGS_MAP
+    app_settings = dict(
+        (k, getattr(settings, v.upper())) for (k,v) in SETTINGS_MAP
     )
     # setup xapian
-    searchpool = SearchPool(yatiri.settings.XAPIAN_DB)
+    searchpool = SearchPool(settings.XAPIAN_DB)
     reactor.callWhenRunning(searchpool.start)
-    params['searchpool'] = searchpool
-    return web.Application(handlers, **params)
+    app_settings['searchpool'] = searchpool
+
+    return web.Application(handlers, **app_settings)
