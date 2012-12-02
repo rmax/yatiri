@@ -5,9 +5,10 @@ from sklearn.feature_selection import (
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import SGDClassifier
 from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.preprocessing import MinMaxScaler
 
 from yatiri import tokenize
-from yatiri.features import TfidfVectorizer, get_preprocessor
+from yatiri.features import TfidfVectorizer, get_preprocessor, only_camelcase
 from yatiri.stemming import get_stemmer
 from yatiri.stopwords import STOP_WORDS
 
@@ -70,7 +71,6 @@ def build_model_b():
 
 
 def build_model_c():
-
     title = default_vectorizer(preprocessor=get_preprocessor('headline'))
     body = default_vectorizer()
 
@@ -102,6 +102,39 @@ def build_model_d():
         ('vect', default_vectorizer()),
         ('todense', DenseMatrixTransformer()),
         ('clf', clf),
+    ])
+
+
+def build_model_e():
+    title = default_vectorizer(preprocessor=get_preprocessor('headline'))
+    camel = default_vectorizer(preprocessor=only_camelcase)
+    body = default_vectorizer()
+
+    ft = FeatureUnion([
+            ('title', title),
+            ('camel', camel),
+            ('body', body),
+        ],
+        transformer_weights={
+            'title': .8,
+            'camel': .8,
+            'body': 1,
+        })
+
+    return Pipeline([
+        ('vect', ft),
+        #('select', default_select()),
+        ('clf', default_classifier()),
+    ])
+
+
+def build_model_f():
+    title = default_vectorizer()
+    return Pipeline([
+        ('vect', default_vectorizer()),
+        ('todense', DenseMatrixTransformer()),
+        ('scaler', MinMaxScaler(copy=False)),
+        ('clf', default_classifier()),
     ])
 
 

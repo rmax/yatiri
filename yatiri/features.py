@@ -1,4 +1,5 @@
 import functools
+import re
 
 from sklearn.feature_extraction.text import (
     TfidfVectorizer as _TfidfVectorizer
@@ -14,6 +15,13 @@ DEFAULT_FIELDS = (
     'teaser',
     'body',
 )
+
+RE_CAMEL = re.compile(r'[A-Z]\w+')
+
+
+def only_camelcase(doc):
+    return ' '.join(RE_CAMEL.findall(normalize_text(
+        doc['headline'] + ' ' + doc['body'])))
 
 
 def preprocessor(doc, fields):

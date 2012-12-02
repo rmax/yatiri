@@ -22,6 +22,8 @@ from yatiri.classification import (
     build_model_b,
     build_model_c,
     build_model_d,
+    build_model_e,
+    build_model_f,
 )
 from yatiri.hashing import doc_guid
 from yatiri.keys import next_key, get_key
@@ -33,9 +35,11 @@ logger = logging.getLogger(__file__)
 
 MODELS = (
     ('base', build_model_a()),
-    ('chi2select', build_model_b()),
+    #('chi2select', build_model_b()),
     #('multifeature', build_model_c()),
     #('randomforest', build_model_d()),
+    #('camel', build_model_e()),
+    #('basescaled', build_model_f()),
 )
 
 # test parameters
@@ -43,13 +47,17 @@ PARAMETERS = {
     'base': {
         'vect__max_df': 0.5,
         'vect__min_df': 3,
-        'vect__ngram_range': (1,5),
+        'vect__ngram_range': (1,4),
+        'vect__max_features': 5000,
+        #'clf__loss': 'log',
+        #'clf__n_iter': 5,
+        #'clf__random_state': 42,
     },
     'chi2select': {
         'vect__max_df': 0.5,
         'vect__min_df': 3,
-        'vect__ngram_range': (1,5),
-        'select__percentile': 10,
+        'vect__ngram_range': (1,4),
+        'select__percentile': 30,
     },
     'multifeature': {
         'vect__binary': True,
@@ -68,6 +76,19 @@ PARAMETERS = {
         'vect__ngram_range': (1,4),
         'clf__n_jobs': 1,
     },
+    'camel': {
+        'vect__title__binary': True,
+        'vect__camel__binary': True,
+        'vect__body__max_df': 0.5,
+        'vect__body__min_df': 3,
+        'vect__body__ngram_range': (1,4),
+        'vect__body__binary': True,
+    },
+    'basescaled': {
+        'vect__max_df': 0.5,
+        'vect__min_df': 3,
+        'vect__ngram_range': (1,4),
+    }
 }
 
 
@@ -351,5 +372,6 @@ if __name__ == '__main__':
     parser.add_argument('--classify-limit', type=int, default=10)
     parser.add_argument('--classify-skip', type=int, default=0)
     parser.add_argument('--best-parameters', action='store_true')
+    parser.add_argument('--report-short', action='store_true')
     args = parser.parse_args()
     main(args)
