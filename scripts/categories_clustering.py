@@ -7,6 +7,7 @@ import logging
 import math
 import numpy as np
 import pprint
+import xappy
 
 
 from collections import defaultdict
@@ -21,31 +22,23 @@ from sklearn.feature_extraction.text import (
 from yatiri import datastore
 from yatiri.batch.load import get_key as get_corpus_key
 from yatiri.timing import LogRuntime
+from yatiri.classification import default_vectorizer
 
 
 logger = logging.getLogger(__file__)
 
 
-STOP_WORDS = map(lambda s: s.decode('utf-8'), nltk_stopwords.words('spanish'))
-STOP_WORDS = map(strip_accents_ascii, STOP_WORDS) + [
-    'cochabamba',
-    'la paz',
-    'santa cruz',
-]
-
-
-DISCARD_URLS = (
-    '/internacional/',
-    '/deportes/',
-    '/tragaluz/',
-    '/vida-y-futuro/',
-    '/economia/',
-)
-
-def _get_data(args):
-    key_from = 'news:{}:'.format(args.date_from.replace('-', ''))
-    key_to = 'news:{};'.format(args.date_to.replace('-', ''))
+def _get_data(category):
+    # load data from xapian categories
     db = datastore.corpus_db()
+    sconn = xappy.SearchConnection(settings.XAPIAN_DB)
+    q = sconn.query_field('category', category)
+
+    offset = 0
+    limit = 1000
+    while True:
+        results = sconn.search(q, offset, offset + limit)
+
     for key, doc in db.range(key_from, key_to):
         if not any(uri in doc['url'] for uri in DISCARD_URLS):
             yield doc
@@ -55,35 +48,15 @@ def get_data(args):
     return filter(None, _get_data(args))
 
 
-def get_preprocessor(fields):
-    """Build preprocessor"""
-    def preprocessor(doc):
-        """Receives the input from fit() or transform().
-        Returns a string.
-        """
-        values = filter(None, (doc.get(f, '') for f in fields))
-        return '\n'.join(map(clean_text, values))
-
-    return preprocessor
-
-
-def clean_text(text):
-    text = text.lower()
-    text = strip_accents_ascii(text.decode('utf-8'))
-    return text
-
 
 def main(args):
     logger.debug("Arguments: %r", args)
-    tfidf_vect = TfidfVectorizer(
-        preprocessor=get_preprocessor(args.fields),
-        analyzer='word', # maybe callable
-        token_pattern=r'\b[a-z]\w+\b',
+    vect = default_vectorizer()
+    vect.set_params(
         ngram_range=(args.min_ngrams, args.max_ngrams),
         max_df=args.max_df,
         max_features=args.max_features,
         sublinear_tf=args.sublinear_tf,
-        stop_words=STOP_WORDS,
         norm=args.norm,
     )
 
@@ -172,6 +145,7 @@ def main(args):
             print doc['headline']
             print get_corpus_key(doc)
             print doc['url']
+            print 'distance:', distances[i,label]
             print truncate(doc_terms)
             print
             if j > 10:
@@ -200,9 +174,9 @@ if __name__ == '__main__':
 
     group = parser.add_argument_group('CountVectorizer parameters')
     group.add_argument('--min-ngrams', type=int, default=1)
-    group.add_argument('--max-ngrams', type=int, default=1)
-    group.add_argument('--max-df', type=float, default=1.0)
-    group.add_argument('--max-features', type=int)
+    group.add_argument('--max-ngrams', type=int, default=3)
+    group.add_argument('--max-df', type=float, default=3.0)
+    group.add_argument('--max-features', type=int, default=5000)
     group.add_argument('--sublinear-tf', action='store_true')
     group.add_argument('--binary', action='store_true')
     group.add_argument('--norm', choices=['l1', 'l2'], default='l2')

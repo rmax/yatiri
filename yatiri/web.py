@@ -1,5 +1,7 @@
+import random
 from cyclone import web
 from cyclone.util import ObjectDict
+from txrho.util.defer import parallel
 from twisted.internet import defer
 from twisted.python import log
 
@@ -26,7 +28,10 @@ CATEGORY_MAP = {
 
 class BaseHandler(web.RequestHandler):
 
+    date = '2012-11-25'
+    page = 1
     active_link = ''
+    limit = 20
 
     def get_args(self, name, default=None):
         return self.request.arguments.get(name, default)
@@ -45,6 +50,8 @@ class BaseHandler(web.RequestHandler):
         kwargs.setdefault('summary', doc_summary)
         kwargs.setdefault('docimg', doc_image)
         kwargs.setdefault('active', self.is_active)
+        kwargs.setdefault('current_date', self.date)
+        kwargs.setdefault('page', self.page)
         return super(BaseHandler, self).render(template_name, **kwargs)
 
     def render_error(self, **kwargs):
@@ -52,17 +59,6 @@ class BaseHandler(web.RequestHandler):
 
     def is_active(self, name):
         return (self.active_link == name) and 'active' or ''
-
-
-class IndexHandler(BaseHandler):
-
-    active_link = 'home'
-
-    def get(self):
-        self.render('index.html')
-
-
-class SearchHandler(BaseHandler):
 
     @property
     def client(self):
@@ -74,8 +70,16 @@ class SearchHandler(BaseHandler):
 
     @defer.inlineCallbacks
     def fetch_docs(self, query, categories=()):
+        page = self.get_arg('page', self.page)
         try:
-            data = yield self.client.search(query, categories)
+            self.page = int(page)
+        except ValueError:
+            self.page = 1
+
+        offset = self.limit * (self.page - 1)
+        try:
+            data = yield self.client.search(query, categories,
+                                            offset=offset, limit=self.limit)
         except Exception as e:
             self.logerr('error while retrieveing results for {!r}'.format(query))
             self.render_error()
@@ -100,8 +104,31 @@ class SearchHandler(BaseHandler):
             doc.update(info)
             results.append(doc)
 
-        defer.returnValue(results)
+        defer.returnValue((data['total'], results))
 
+
+class IndexHandler(BaseHandler):
+
+    active_link = 'home'
+
+    @defer.inlineCallbacks
+    def get(self):
+        cats = ['seguridad', 'conflictos', 'politica']
+        labels = ['Inseguridad Ciudadana', 'Conflictos Sociales', 'Inestabilidad Pol&iacute;tica']
+        #ret1 = yield parallel(cats, 3, lambda c: self.fetch_docs('', [c]))
+        self.page = random.randint(100,800)
+        self.limit = 3
+        results = []
+        for c in cats:
+            r = yield self.fetch_docs('', [c])
+            results.append(r[1])
+        self.render('index.html',
+            labels=dict(zip(cats, labels)),
+            data=zip(cats, results),
+        )
+
+
+class SearchHandler(BaseHandler):
 
     @defer.inlineCallbacks
     def get(self):
@@ -112,10 +139,11 @@ class SearchHandler(BaseHandler):
         else:
             categories = CATEGORY_MAP.keys()
         if q:
-            results = yield self.fetch_docs(q, categories)
+            total, results = yield self.fetch_docs(q, categories)
             kwargs = dict(
                 query=q,
                 results=results,
+                total=total,
             )
             if results:
                 self.render("search_results.html", **kwargs)
@@ -126,16 +154,32 @@ class SearchHandler(BaseHandler):
             self.redirect("/")
 
 
+class BrowseHandler(SearchHandler):
+
+    active_link = 'browse'
+
+    @defer.inlineCallbacks
+    def get(self):
+        total, results = yield self.fetch_docs('')
+        kwargs = dict(
+            results=results,
+            total=total,
+        )
+        self.render("search_results.html", **kwargs)
+
+
+
 class CategoryHandler(SearchHandler):
 
     @defer.inlineCallbacks
     def get(self, category):
         category = CATEGORY_MAP[category]
         self.log(category)
-        results = yield self.fetch_docs('', [category])
+        total, results = yield self.fetch_docs('', [category])
         if results:
             self.active_link = category
             kwargs = dict(
+                total=total,
                 results=results,
             )
             self.render("category_list.html", **kwargs)
@@ -144,6 +188,7 @@ class CategoryHandler(SearchHandler):
 def get_app():
     handlers = [
         (r'/', IndexHandler),
+        (r'/browse/?', BrowseHandler),
         (r'/search/?', SearchHandler),
         (r'/({})/?'.format(r'|'.join(CATEGORY_MAP.keys())), CategoryHandler),
     ]

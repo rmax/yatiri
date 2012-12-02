@@ -15,13 +15,13 @@ class SearchClient(object):
         return httpclient.fetch(url, *args, **kwargs)
 
     @defer.inlineCallbacks
-    def search(self, query, categories=()):
+    def search(self, query, categories=(),  **kwargs):
+        kwargs.update({
+            'q': query,
+            'category': categories,
+        })
         url = urljoin(self.endpoint, '/search?{}'.format(
-            urlencode({
-                'q': query,
-                'category': categories,
-            }, doseq=1)
-        ))
+            urlencode(kwargs, doseq=1)))
         result = yield self.fetch(url)
         data = json.loads(result.body)
         defer.returnValue(data)

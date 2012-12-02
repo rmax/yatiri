@@ -3,6 +3,11 @@ import xappy
 from xappy import FieldActions
 
 from yatiri import settings
+from yatiri.text import normalize_text
+
+
+# fix missing attribute
+xapian.MultiValueCountMatchSpy = xapian.ValueCountMatchSpy
 
 
 MAX_MEM = 512 * 1024 * 1024 # in bytes
@@ -40,8 +45,8 @@ SORTABLE_FIELDS = (
 )
 
 FACET_FIELDS = (
-    'category',
-    'topics',
+#    'category',
+#    'topics',
 )
 
 COLLAPSE_FIELDS = (
@@ -94,21 +99,52 @@ def index(items, doc_type, create=False):
         with indexer as conn:
             create_index(conn)
 
+    preprocess_text = lambda t: normalize_text(t).lower()
+
     with indexer as conn:
         n = 0
         for n, (key, data) in enumerate(items, 1):
             doc = xappy.UnprocessedDocument(key)
             doc.append('type', doc_type)
             for field in TEXT_FIELDS:
-                doc.append(field, data.get(field, ''))
+                val = data.get(field, '')
+                if val:
+                    doc.append(field, preprocess_text(val))
+            for field in EXACT_FIELDS:
+                val = data.get(field, '')
+                if field == 'date' and val:
+                    val = val.partition(' ')[0]
+                    if not val.count('-') == 2:
+                        val = None
+                if val:
+                    doc.append(field, val)
+
+            for field, kwargs in SORTABLE_FIELDS:
+                val = data.get(field)
+                if not val:
+                    continue
+                doc.append(field, val, **kwargs)
+
+            for field in FACET_FIELDS:
+                val = data.get(field)
+                if not val:
+                    continue
+                doc.append(field, val)
+
+            for field in COLLAPSE_FIELDS:
+                val = data.get(field)
+                if not val:
+                    continue
+                doc.append(field, val)
+
             conn.add(doc)
         return n
 
 
-def execute_query(sconn, q, offset, limit):
+def execute_query(sconn, q, offset, limit, **kwargs):
     if not isinstance(q,  (xapian.Query, xappy.Query)):
         q = sconn.query_parse(q, default_op=sconn.OP_AND)
-    return sconn.search(q, startrank=offset, endrank=offset+limit)
+    return sconn.search(q, startrank=offset, endrank=offset+limit, **kwargs)
 
 # legacy alias
 query = execute_query

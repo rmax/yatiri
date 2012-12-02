@@ -13,6 +13,7 @@ SETTINGS_MAP = (
 )
 
 
+
 class BaseHandler(_BaseHandler):
 
     @property
@@ -72,6 +73,7 @@ class SearchHandler(BaseHandler):
             q = sconn.query_parse(q)
         else:
             q = sconn.query_all()
+
         categories = self.get_args('category')
         if categories:
             qc = sconn.query_composite(
@@ -79,10 +81,23 @@ class SearchHandler(BaseHandler):
                     sconn.query_field('category', value)
                     for value in categories
                 ])
-            q = sconn.query_composite(
-                sconn.OP_AND, [q, qc])
+            #q = sconn.query_composite(
+            #    sconn.OP_AND, [q, qc])
+            q = q.filter(qc)
+
+        date = self.get_arg('date')
+        if date:
+            qd = sconn.query_field('date', date)
+            q = q.filter(qd)
+
+        sortby = self.get_arg('sortby')
+        if sortby:
+            sortby = [sortby]
+        else:
+            sortby = None
+
         self.log('Query: {!r}'.format(q))
-        results = execute_query(sconn, q, offset, limit)
+        results = execute_query(sconn, q, offset, limit, sortby=sortby)
         self.success({
             'total': results.matches_estimated,
             'is_exact': results.estimate_is_exact,

@@ -1,7 +1,9 @@
 <div class="item media {{ item.category }}">
     <span class="media-object span2 pull-left">{{ docimg(item) }}</span>
     <div class="media-body">
-        <h4 class="media-heading"><a class="external" href="{{ item.url }}">{{ item.headline }}</a></h4>
+        <h4 class="media-heading"><a class="external" href="{{ item.url }}">{{ item.headline }}</a>
+            <span class="label {% if item.category == 'seguridad' %}label-important{% end %} {% if item.category == 'conflictos' %}label-warning{% end %}">{{ item.category }}</span>
+        </h4>
         <div class="source muted">{{ item.site }} - {{ item.datetime }}</div>
         <div class="summary">{% autoescape None %}{{ summary(item) }}</div>
     </div>

@@ -1,9 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
+<p class="muted">Se encontraron {{ total }} art&iacute;culos.</p>
+{% include "pager.html" %}
 <div class="row">
     {% for item in results %}
         {% include "item.html" %}
     {% end %}
 <div>
+{% include "pager.html" %}
 {% end %}

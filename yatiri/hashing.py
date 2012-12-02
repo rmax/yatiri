@@ -26,7 +26,9 @@ def doc_guid(doc):
 
     """
     h = hashlib.sha1()
-    url = doc['url'].encode('utf-8')
+    url = doc['url']
+    if isinstance(url, unicode):
+        url = url.encode('utf-8')
     site = doc.get('site')
     if site and site in RE_SITE_ID:
         match = RE_SITE_ID[site].search(url)
