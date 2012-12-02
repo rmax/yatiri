@@ -11,6 +11,15 @@
 
 .footer { margin-top: 20px }
 
+.item img {
+    float: right;
+    max-width: 160px;
+    min-width: 90px;
+}
+
+.item .media-object {
+    padding-top: 5px;
+}
 
 
 

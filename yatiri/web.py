@@ -5,7 +5,7 @@ from twisted.python import log
 
 from yatiri import datastore, settings
 from yatiri.searchclient import SearchClient
-from yatiri.utils import doc_summary
+from yatiri.utils import doc_summary, doc_image
 
 
 SETTINGS_MAP = (
@@ -26,6 +26,8 @@ CATEGORY_MAP = {
 
 class BaseHandler(web.RequestHandler):
 
+    active_link = ''
+
     def get_args(self, name, default=None):
         return self.request.arguments.get(name, default)
 
@@ -41,14 +43,20 @@ class BaseHandler(web.RequestHandler):
 
     def render(self, template_name, **kwargs):
         kwargs.setdefault('summary', doc_summary)
+        kwargs.setdefault('docimg', doc_image)
+        kwargs.setdefault('active', self.is_active)
         return super(BaseHandler, self).render(template_name, **kwargs)
 
     def render_error(self, **kwargs):
         return self.render('error.html', **kwargs)
 
+    def is_active(self, name):
+        return (self.active_link == name) and 'active' or ''
 
 
 class IndexHandler(BaseHandler):
+
+    active_link = 'home'
 
     def get(self):
         self.render('index.html')
@@ -126,6 +134,7 @@ class CategoryHandler(SearchHandler):
         self.log(category)
         results = yield self.fetch_docs('', [category])
         if results:
+            self.active_link = category
             kwargs = dict(
                 results=results,
             )

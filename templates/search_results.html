@@ -1,13 +1,9 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="search-results">
-    {% for doc in results %}
-        <div class="item">
-            <div class="headline"><a href="{{ doc.url }}">{{ doc.headline }}</a></div>
-            <div class="source">{{ doc.site }} - {{ doc.datetime }}</div>
-            <div class="summary">{{ summary(doc) }}</div>
-        <div class="item">
+<div class="row">
+    {% for item in results %}
+        {% include "item.html" %}
     {% end %}
 <div>
 {% end %}

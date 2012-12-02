@@ -36,5 +36,15 @@ def doc_summary(doc, limit=300):
     return nl2br(target)
 
 
+def doc_image(doc):
+    images = doc.get('images')
+    if images:
+        # TODO: improve me
+        url = images[0]
+    else:
+        url = "/static/img/260x180.gif"
+    return '<img class="media-object" src="{}" />'.format(url)
+
+
 def nl2br(text):
     return text.replace('\n', '<br />')
