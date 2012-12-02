@@ -307,8 +307,6 @@ def main(args):
             print "Best Scores:"
             print grid.best_score_
             print grid.best_params_
-
-            from IPython import embed; embed()
             return
 
     train_data, test_data = split_list(dataset.data, train_size)
@@ -341,15 +339,12 @@ def main(args):
             labels.append(_by_model)
 
         data_labels = zip(data, labels)
-        LabelValidation(args.train_path, data_labels).cmdloop()
-
-        # get top keys
-        # v = model.named_steps['vect']
-        # X = v.transform([doc])
-        # topkeys = [
-        #   features[i] for i in np.argsort(row.toarray())[0][-20:]
-        # ]
-        #from IPython import embed; embed()
+        if args.report_short:
+            for doc, doc_labels in data_labels:
+                print '{}\t{!r}'.format(get_key(doc), doc_labels)
+        else:
+            #LabelValidation(args.train_path, data_labels).cmdloop()
+            pass
 
     else:
         print "{} documents (testing set)".format(len(test_data))
